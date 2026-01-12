@@ -1,0 +1,30 @@
+[project]
+name = "genie-config-manager"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Aayush Choudhury", email = "aayush.choudhury@databricks.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "databricks-sdk>=0.77.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "python-dotenv>=1.2.1",
+    "pyyaml>=6.0.3",
+    "typer>=0.21.1",
+]
+
+[project.scripts]
+genie = "genie_config_manager.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.14.11",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.22,<0.10.0"]
+build-backend = "uv_build"

@@ -1,0 +1,37 @@
+
+# This file is used to configure your Genie Space.
+
+genie:
+  # A list of fully qualified table names to include in your Genie Space.
+  # Example:
+  # data_sources:
+  #   - "catalog.schema.table"
+  data_sources:
+      tables: []
+
+  # Example:
+  # sample_questions:
+  #   - "What are the most common complaints?"
+  #   - "How many complaints were resolved last week?"
+  config:
+    sample_questions:
+      - question: []
+
+  # Instructions to guide the Genie.
+  instructions:
+    # High-level instructions for the Genie.
+    text_instructions:
+      - content: []
+
+  # Examples of questions and their corresponding SQL queries.
+  example_question_sqls: []
+  # - question: "What is the average resolution time for complaints?"
+  #   sql: "SELECT AVG(resolution_time) FROM complaints"
+
+  # Specifications for how to join tables.
+  join_specs: []
+
+  # Reusable SQL snippets.
+  sql_snippets: {}
+
+
