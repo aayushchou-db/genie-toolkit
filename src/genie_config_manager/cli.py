@@ -91,7 +91,7 @@ def init(
 
 
 @app.command()
-def create(
+def create(  # TODO: Consolidate into load_config function shared between create and push
     warehouse_id: Annotated[
         str,
         typer.Option(
