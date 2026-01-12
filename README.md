@@ -1,8 +1,8 @@
 ## Installation
 
 After cloning the repo run 
-```uv sync```
-```source .venv/bin/activate```
+- ```uv sync```
+- ```source .venv/bin/activate```
 
 TODO: Add better installation and setup instructions
 
