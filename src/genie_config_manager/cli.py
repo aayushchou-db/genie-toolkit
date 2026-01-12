@@ -7,7 +7,7 @@ from databricks.sdk import WorkspaceClient
 from dotenv import load_dotenv, set_key
 from typing_extensions import Annotated
 
-from genie_config_manager.templates import GENIE_CONFIG_TEMPLATE
+from genie_config_manager.genie_service import create_genie_space, update_genie_space
 from genie_config_manager.schemas import (
     GenieConfig,
     GenieDataSources,
@@ -15,7 +15,7 @@ from genie_config_manager.schemas import (
     GenieLoadOptions,
     GenieSchemaSettings,
 )
-from genie_config_manager.genie_service import create_genie_space, update_genie_space
+from genie_config_manager.templates import GENIE_CONFIG_TEMPLATE
 
 app = typer.Typer()
 load_dotenv()
@@ -113,7 +113,7 @@ def create(
         ),
     ] = None,
     config: Annotated[
-        str,
+        typer.FileText,
         typer.Option(
             help="Path to the YAML configuration file.",
         ),
@@ -143,8 +143,7 @@ def create(
 
     wc = get_client(profile)
 
-    with open(config, "r") as f:
-        yaml_config = yaml.safe_load(f)
+    yaml_config = yaml.safe_load(config)
     genie_config = yaml_config.get("genie", {})
 
     data_tables = genie_config["data_sources"]["tables"]
