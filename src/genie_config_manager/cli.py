@@ -3,11 +3,12 @@ import os
 
 import typer
 import yaml
-from databricks.sdk import WorkspaceClient
 from dotenv import load_dotenv, set_key
 from typing_extensions import Annotated
 
-from genie_config_manager.genie_service import create_genie_space, update_genie_space
+from genie_config_manager.genie_service import (
+    get_genie_service,
+)
 from genie_config_manager.schemas import (
     GenieConfig,
     GenieDataSources,
@@ -19,14 +20,6 @@ from genie_config_manager.templates import GENIE_CONFIG_TEMPLATE
 
 app = typer.Typer()
 load_dotenv()
-
-
-def get_client(profile: str | None) -> WorkspaceClient:
-    try:
-        return WorkspaceClient(profile=profile)
-    except Exception as e:
-        typer.secho(f"❌ Failed to connect to Databricks: {e}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
 
 
 def update_env(key: str, value: str):
@@ -141,7 +134,7 @@ def create(  # TODO: Consolidate into load_config function shared between create
     if not title:
         title = typer.prompt("Enter the name of your genie space.")
 
-    wc = get_client(profile)
+    genie_service = get_genie_service(profile)
 
     yaml_config = yaml.safe_load(config)
     genie_config = yaml_config.get("genie", {})
@@ -149,7 +142,9 @@ def create(  # TODO: Consolidate into load_config function shared between create
     data_tables = genie_config["data_sources"]["tables"]
 
     if len(data_tables) > 0:
-        data_sources = GenieDataSources.from_uc(wc, data_tables, GenieLoadOptions())
+        data_sources = GenieDataSources.from_uc(
+            genie_service.wc, data_tables, GenieLoadOptions()
+        )
     else:
         data_sources = None
 
@@ -164,8 +159,7 @@ def create(  # TODO: Consolidate into load_config function shared between create
         instructions=instructions,
     )
 
-    genie_space = create_genie_space(
-        wc,
+    genie_space = genie_service.create(
         warehouse_id,
         genie_schema_settings,
         title=title,
@@ -199,8 +193,10 @@ def pull(
     """
     typer.echo(f"Pulling configuration from Genie Space: {space_id}")
     typer.echo(f"Using profile: {profile}")
-    wc = get_client(profile)
-    genie_space = wc.genie.get_space(space_id=space_id, include_serialized_space=True)
+    genie_service = get_genie_service(profile)
+    genie_space = genie_service.wc.genie.get_space(
+        space_id=space_id, include_serialized_space=True
+    )
     genie_schema_settings = GenieSchemaSettings(
         **json.loads(genie_space.serialized_space)
     )
@@ -256,7 +252,7 @@ def push(
             "Space ID not provided. Please set GENIE_SPACE_ID env var or use --space_id argument."
         )
 
-    wc = get_client(profile)
+    genie_service = get_genie_service(profile)
 
     yaml_config = yaml.safe_load(config)
     genie_config = yaml_config.get("genie", {})
@@ -268,8 +264,7 @@ def push(
         instructions=genie_config.get("instructions"),
     )
 
-    genie_space = update_genie_space(
-        wc,
+    genie_space = genie_service.update(
         space_id,
         genie_schema_settings,
         title=title,
