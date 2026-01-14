@@ -4,6 +4,14 @@ After cloning the repo run
 - ```uv sync```
 - ```source .venv/bin/activate```
 
+To add to your project without cloning, you can run:
+
+- ```uv add "genie-config-manager @ git+https://github.com/aayushchou-db/genie-config-manager"```
+
+- ```source .venv/bin/activate```
+
+You should then be able to run the commands listed in the usage below 
+
 TODO: Add better installation and setup instructions
 
 ## Usage
