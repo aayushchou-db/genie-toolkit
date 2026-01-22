@@ -7,7 +7,7 @@ from databricks.sdk import WorkspaceClient
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from genie_config_manager.templates import GENIE_CONFIG_TEMPLATE
+from genie_toolkit.templates import GENIE_CONFIG_TEMPLATE
 
 TTables = TypeVar("TTables", bound="GenieTableConfig")
 TInstructions = TypeVar("TInstructions", bound="GenieInstructions")

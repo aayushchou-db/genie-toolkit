@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from genie_config_manager.schemas import (
+from genie_toolkit.schemas import (
     GenieConfig,
     GenieDataSources,
     GenieLoadOptions,
@@ -93,7 +93,7 @@ class TestSerialization:
         file_path = tmp_path / "genie.yml"
 
         with patch(
-            "genie_config_manager.templates.GENIE_CONFIG_TEMPLATE",
+            "genie_toolkit.templates.GENIE_CONFIG_TEMPLATE",
             "HEADER_TEXT\ngenie: dummy",
         ):
             settings.to_yaml(str(file_path))

@@ -3,7 +3,7 @@ import logging
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import GenieSpace
 
-from genie_config_manager.schemas import GenieSchemaSettings
+from genie_toolkit.schemas import GenieSchemaSettings
 
 
 class GenieService:

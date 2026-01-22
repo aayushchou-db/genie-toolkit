@@ -1,7 +1,7 @@
 [project]
-name = "genie-config-manager"
+name = "genie-toolkit"
 version = "0.1.0"
-description = "Add your description here"
+description = "Genie toolkit to help with genie based projects."
 readme = "README.md"
 authors = [
     { name = "Aayush Choudhury", email = "aayush.choudhury@databricks.com" }
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-genie = "genie_config_manager.cli:app"
+genie = "genie_toolkit.cli:app"
 
 [project.optional-dependencies]
 dev = [
