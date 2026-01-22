@@ -6,7 +6,7 @@ After cloning the repo run
 
 To add to your project without cloning, you can run:
 
-- ```uv add "genie-config-manager @ git+https://github.com/aayushchou-db/genie-toolkit"```
+- ```uv add "genie-toolkit @ git+https://github.com/aayushchou-db/genie-toolkit"```
 
 - ```source .venv/bin/activate```
 
