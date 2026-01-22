@@ -6,17 +6,17 @@ import yaml
 from dotenv import load_dotenv, set_key
 from typing_extensions import Annotated
 
-from genie_config_manager.genie_service import (
+from genie_toolkit.genie_service import (
     get_genie_service,
 )
-from genie_config_manager.schemas import (
+from genie_toolkit.schemas import (
     GenieConfig,
     GenieDataSources,
     GenieInstructions,
     GenieLoadOptions,
     GenieSchemaSettings,
 )
-from genie_config_manager.templates import GENIE_CONFIG_TEMPLATE
+from genie_toolkit.templates import GENIE_CONFIG_TEMPLATE
 
 app = typer.Typer()
 load_dotenv()

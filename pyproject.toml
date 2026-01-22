@@ -1,7 +1,7 @@
 [project]
 name = "genie-toolkit"
 version = "0.1.0"
-description = "Add your description here"
+description = "Genie toolkit to help with genie based projects."
 readme = "README.md"
 authors = [
 ]

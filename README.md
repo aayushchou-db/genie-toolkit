@@ -20,3 +20,10 @@ TODO: Add better installation and setup instructions
 - 'genie create' creates a genie space if it hasn't been created already
 - 'genie pull' pulls config from the genie space
 - 'genie push' pushes local config to the genie space
+
+
+## Goals
+
+- 'genie ui' Generate a genie ui clone app
+- 'genie optimise' Optimise an existing genie space config
+- 'genie deploy' Generate asset bundle for deployment

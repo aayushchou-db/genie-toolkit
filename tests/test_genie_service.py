@@ -4,11 +4,11 @@ import pytest
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import GenieSpace
 
-from genie_config_manager.genie_service import (
+from genie_toolkit.genie_service import (
     GenieService,
     get_genie_service,
 )
-from genie_config_manager.schemas import GenieSchemaSettings
+from genie_toolkit.schemas import GenieSchemaSettings
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ def test_update_space_calls_correct_sdk_method(
 
 
 def test_get_genie_service_success():
-    with patch("genie_config_manager.genie_service.WorkspaceClient") as mock_wc_init:
+    with patch("genie_toolkit.genie_service.WorkspaceClient") as mock_wc_init:
         service = get_genie_service(profile="dev")
 
         mock_wc_init.assert_called_once_with(profile="dev")
@@ -90,7 +90,7 @@ def test_get_genie_service_success():
 
 def test_get_genie_service_failure():
     with patch(
-        "genie_config_manager.genie_service.WorkspaceClient",
+        "genie_toolkit.genie_service.WorkspaceClient",
         side_effect=Exception("Connection Error"),
     ):
         with pytest.raises(ValueError):
