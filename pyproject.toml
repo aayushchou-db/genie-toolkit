@@ -22,6 +22,7 @@ genie = "genie_toolkit.cli:app"
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.14.11",
+    "pytest-cov>=7.0.0",
 ]
 
 [build-system]
