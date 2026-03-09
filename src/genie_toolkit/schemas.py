@@ -144,10 +144,10 @@ class GenieJoinSpecs(BaseModel):
 
 class GenieSQLSnippet(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-    alias: str | None
+    alias: str | None = None
     sql: list[str]
-    display_name: str
-    synonyms: list[str]
+    display_name: str | None = None
+    synonyms: list[str] | None = None
 
 
 class GenieSQLSnippets(BaseModel):
@@ -176,7 +176,7 @@ class GenieInstructions(BaseModel):
 
 class GenieBenchmarkAnswer(BaseModel):
     format: str
-    content: list[str]
+    content: list[str] | None = None
 
 
 class GenieBenchmarkQuestion(BaseModel):
