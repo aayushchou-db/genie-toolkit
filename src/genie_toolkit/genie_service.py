@@ -51,4 +51,4 @@ def get_genie_service(profile: str | None) -> GenieService:
         return GenieService(wc)
     except Exception as e:
         logging.error(f"❌ Failed to connect to Databricks: {e}")
-        raise ValueError
+        raise ValueError(f"Failed to connect to Databricks: {e}")

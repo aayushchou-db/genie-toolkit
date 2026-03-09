@@ -125,7 +125,7 @@ class GenieExampleSQL(BaseModel):
     sql: list[str]
 
 
-class GenieInstruction(BaseModel):
+class GenieTextInstruction(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     content: list[str] | None = None
 
@@ -157,7 +157,7 @@ class GenieSQLSnippets(BaseModel):
 
 
 class GenieInstructions(BaseModel):
-    text_instructions: list[GenieInstruction] | None = None
+    text_instructions: list[GenieTextInstruction] | None = None
     example_question_sqls: list[GenieExampleSQL] | None = None
     join_specs: list[GenieJoinSpecs] | None = None
     sql_snippets: GenieSQLSnippets | None = None
@@ -174,12 +174,33 @@ class GenieInstructions(BaseModel):
         )
 
 
+class GenieBenchmarkAnswer(BaseModel):
+    format: str
+    content: list[str]
+
+
+class GenieBenchmarkQuestion(BaseModel):
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    question: list[str]
+    answer: list[GenieBenchmarkAnswer]
+
+
+class GenieBenchmarks(BaseModel):
+    questions: list[GenieBenchmarkQuestion]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "GenieBenchmarks":
+        """Factory method to create benchmarks from a dictionary."""
+        return cls(**data)
+
+
 class GenieSchemaSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_")
     version: int
     config: Optional[GenieConfig] = None
     data_sources: Optional[GenieDataSources] = None
     instructions: Optional[GenieInstructions] = None
+    benchmarks: Optional[GenieBenchmarks] = None
 
     def to_yaml(self, file_path: str = "genie.yml") -> None:
         """
@@ -195,6 +216,7 @@ class GenieSchemaSettings(BaseSettings):
                 "config": data.get("config") or [],
                 "instructions": data.get("instructions")
                 or {"text_instructions": {"content": []}},
+                "benchmarks": data.get("benchmarks"),
                 "example_question_sqls": [],
                 "join_specs": [],
                 "sql_snippets": {},
