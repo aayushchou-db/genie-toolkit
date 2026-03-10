@@ -93,12 +93,12 @@ def create(  # TODO: Consolidate into load_config function shared between create
         ),
     ],
     profile: Annotated[
-        str,
+        str | None,
         typer.Option(
-            help="The Databricks CLI profile to use.",
+            help="The Databricks CLI profile to use. Optional in Databricks notebook environments.",
             envvar="DATABRICKS_PROFILE",
         ),
-    ],
+    ] = None,
     title: Annotated[
         str | None,
         typer.Option(
@@ -121,11 +121,6 @@ def create(  # TODO: Consolidate into load_config function shared between create
     """
     Create a new Genie Space.
     """
-    if not profile:
-        raise typer.BadParameter(
-            "Databricks CLI profile not provided. Please set DATABRICKS_PROFILE env var or use --profile argument."
-        )
-
     if not warehouse_id:
         raise typer.BadParameter(
             "SQL warehouse ID not provided. Please set WAREHOUSE_ID env var or use --warehouse_id argument."
@@ -181,18 +176,17 @@ def pull(
         ),
     ],
     profile: Annotated[
-        str,
+        str | None,
         typer.Option(
-            help="The Databricks CLI profile to use.",
+            help="The Databricks CLI profile to use. Optional in Databricks notebook environments.",
             envvar="DATABRICKS_PROFILE",
         ),
-    ],
+    ] = None,
 ):
     """
     Pull the latest configuration from a Genie Space.
     """
     typer.echo(f"Pulling configuration from Genie Space: {space_id}")
-    typer.echo(f"Using profile: {profile}")
     genie_service = get_genie_service(profile)
     genie_space = genie_service.wc.genie.get_space(
         space_id=space_id, include_serialized_space=True
@@ -217,12 +211,12 @@ def push(
         ),
     ],
     profile: Annotated[
-        str,
+        str | None,
         typer.Option(
-            help="The Databricks CLI profile to use.",
+            help="The Databricks CLI profile to use. Optional in Databricks notebook environments.",
             envvar="DATABRICKS_PROFILE",
         ),
-    ],
+    ] = None,
     config: Annotated[
         typer.FileText,
         typer.Option(
@@ -240,12 +234,6 @@ def push(
     Push local configuration changes to a Genie Space.
     """
     typer.echo(f"Pushing configuration to Genie Space: {space_id}")
-    typer.echo(f"Using profile: {profile}")
-
-    if not profile:
-        raise typer.BadParameter(
-            "Databricks CLI profile not provided. Please set DATABRICKS_PROFILE env var or use --profile argument."
-        )
 
     if not space_id:
         raise typer.BadParameter(

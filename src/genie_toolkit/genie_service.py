@@ -45,10 +45,12 @@ class GenieService:
         return genie_space
 
 
-def get_genie_service(profile: str | None) -> GenieService:
+def get_genie_service(profile: str | None = None) -> GenieService:
     try:
-        wc = WorkspaceClient(profile=profile)
-        return GenieService(wc)
+        if profile:
+            wc = WorkspaceClient(profile=profile)
+            return GenieService(wc)
+        return GenieService(WorkspaceClient())
     except Exception as e:
         logging.error(f"❌ Failed to connect to Databricks: {e}")
         raise ValueError(f"Failed to connect to Databricks: {e}")

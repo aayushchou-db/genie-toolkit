@@ -107,6 +107,33 @@ class TestCreateCommand:
         assert result.exit_code == 0
         assert "created successfully" in result.stdout
 
+    @patch("genie_toolkit.cli.get_genie_service")
+    @patch("genie_toolkit.cli.update_env")
+    def test_create_without_profile(self, mock_update_env, mock_get_svc, tmp_path, monkeypatch):
+        monkeypatch.delenv("DATABRICKS_PROFILE", raising=False)
+        mock_space = MagicMock()
+        mock_space.space_id = "sp123"
+        mock_space.title = "Test Space"
+        mock_get_svc.return_value.create.return_value = mock_space
+
+        config_file = tmp_path / "genie.yml"
+        config_file.write_text(
+            "genie:\n  data_sources:\n    tables: []\n  sample_questions: []\n  instructions: {}\n"
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "create",
+                "--warehouse-id", "wh123",
+                "--title", "Test Space",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "created successfully" in result.stdout
+        mock_get_svc.assert_called_once_with(None)
+
     @patch("genie_toolkit.cli.GenieDataSources.from_uc")
     @patch("genie_toolkit.cli.get_genie_service")
     @patch("genie_toolkit.cli.update_env")
@@ -160,6 +187,29 @@ class TestPushCommand:
         assert result.exit_code == 0
         assert "updated successfully" in result.stdout
 
+    @patch("genie_toolkit.cli.get_genie_service")
+    def test_push_without_profile(self, mock_get_svc, tmp_path, monkeypatch):
+        monkeypatch.delenv("DATABRICKS_PROFILE", raising=False)
+        mock_space = MagicMock()
+        mock_space.title = "Updated"
+        mock_get_svc.return_value.update.return_value = mock_space
+
+        config_file = tmp_path / "genie.yml"
+        config_file.write_text(
+            "genie:\n  data_sources:\n    tables: []\n  instructions: {}\n"
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "push",
+                "--space-id", "sp123",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code == 0
+        mock_get_svc.assert_called_once_with(None)
+
 
 class TestPullCommand:
     @patch("genie_toolkit.cli.update_env")
@@ -176,3 +226,20 @@ class TestPullCommand:
         )
         assert result.exit_code == 0
         assert "Successfully pulled" in result.stdout
+
+    @patch("genie_toolkit.cli.update_env")
+    @patch("genie_toolkit.cli.get_genie_service")
+    def test_pull_without_profile(self, mock_get_svc, mock_update_env, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("DATABRICKS_PROFILE", raising=False)
+        mock_space = MagicMock()
+        mock_space.serialized_space = '{"version": 1}'
+        mock_get_svc.return_value.wc.genie.get_space.return_value = mock_space
+
+        result = runner.invoke(
+            app,
+            ["pull", "--space-id", "sp123"],
+        )
+        assert result.exit_code == 0
+        assert "Successfully pulled" in result.stdout
+        mock_get_svc.assert_called_once_with(None)
