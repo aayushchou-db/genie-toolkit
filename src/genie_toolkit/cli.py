@@ -9,7 +9,9 @@ from typing_extensions import Annotated
 from genie_toolkit.genie_service import (
     get_genie_service,
 )
+from genie_toolkit.optimiser import run_optimisation
 from genie_toolkit.schemas import (
+    GenieBenchmarks,
     GenieConfig,
     GenieDataSources,
     GenieInstructions,
@@ -259,6 +261,105 @@ def push(
     )
 
     typer.echo(f"Genie Space '{genie_space.title}' updated successfully.")
+
+
+@app.command()
+def optimise(
+    space_id: Annotated[
+        str,
+        typer.Option(
+            help="The ID of the Genie Space to optimise.",
+            envvar="GENIE_SPACE_ID",
+        ),
+    ],
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            help="The Databricks CLI profile to use. Optional in Databricks notebook environments.",
+            envvar="DATABRICKS_PROFILE",
+        ),
+    ] = None,
+    config: Annotated[
+        typer.FileText,
+        typer.Option(
+            help="Path to the YAML configuration file.",
+        ),
+    ] = "genie.yml",
+    model_endpoint: Annotated[
+        str,
+        typer.Option(
+            help="Databricks Foundation Model serving endpoint for LLM judging.",
+        ),
+    ] = "databricks-meta-llama-3-3-70b-instruct",
+    max_evals: Annotated[
+        int,
+        typer.Option(
+            help="Maximum number of evaluations for the optimisation loop.",
+        ),
+    ] = 100,
+    train_ratio: Annotated[
+        float,
+        typer.Option(
+            help="Fraction of benchmarks to use for training.",
+        ),
+    ] = 0.7,
+    val_ratio: Annotated[
+        float,
+        typer.Option(
+            help="Fraction of benchmarks to use for validation.",
+        ),
+    ] = 0.15,
+):
+    """
+    Optimise a Genie Space configuration using benchmark questions.
+
+    Uses GEPA (evolutionary text optimisation) to iteratively improve the
+    genie config's text components against benchmark performance.
+    """
+    yaml_config = yaml.safe_load(config)
+    genie_config = yaml_config.get("genie", {})
+
+    benchmarks_data = genie_config.get("benchmarks")
+    if not benchmarks_data or not benchmarks_data.get("questions"):
+        typer.echo(
+            "No benchmarks found in config. Add benchmarks with questions and expected answers to genie.yml."
+        )
+        raise typer.Exit(code=1)
+
+    benchmarks = GenieBenchmarks.from_dict(benchmarks_data)
+
+    genie_schema_settings = GenieSchemaSettings(
+        version=1,
+        config=genie_config.get("sample_questions"),
+        data_sources=genie_config.get("data_sources", {"tables": None}),
+        instructions=genie_config.get("instructions"),
+        benchmarks=benchmarks,
+    )
+
+    genie_service = get_genie_service(profile)
+
+    typer.echo(f"Optimising Genie Space: {space_id}")
+    typer.echo(f"Benchmarks: {len(benchmarks.questions)} questions")
+    typer.echo(f"Max evaluations: {max_evals}")
+
+    results = run_optimisation(
+        genie_service=genie_service,
+        space_id=space_id,
+        settings=genie_schema_settings,
+        benchmarks_questions=benchmarks.questions,
+        model_endpoint=model_endpoint,
+        max_evals=max_evals,
+        train_ratio=train_ratio,
+        val_ratio=val_ratio,
+    )
+
+    # Write optimised config back
+    results["best_settings"].to_yaml()
+
+    typer.echo(f"Train score: {results['train_score']:.2%}")
+    typer.echo(f"Validation score: {results['val_score']:.2%}")
+    typer.echo(f"Test questions held out: {results['test_count']}")
+    typer.echo("Optimised configuration written to genie.yml")
 
 
 if __name__ == "__main__":

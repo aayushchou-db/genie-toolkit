@@ -1,7 +1,8 @@
 import logging
+import time
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.dashboards import GenieSpace
+from databricks.sdk.service.dashboards import GenieMessage, GenieSpace, MessageStatus
 
 from genie_toolkit.schemas import GenieSchemaSettings
 
@@ -9,6 +10,48 @@ from genie_toolkit.schemas import GenieSchemaSettings
 class GenieService:
     def __init__(self, wc: WorkspaceClient):
         self.wc = wc
+
+    def ask_question(
+        self, space_id: str, question: str, timeout: int = 300
+    ) -> GenieMessage:
+        """Send a question to a Genie Space and return the completed message.
+
+        Uses start_conversation_and_wait for automatic polling, with a fallback
+        manual poll loop if the message isn't completed yet.
+        """
+        from datetime import timedelta
+
+        message = self.wc.genie.start_conversation_and_wait(
+            space_id=space_id,
+            content=question,
+            timeout=timedelta(seconds=timeout),
+        )
+
+        # If the wait helper returns a non-completed status, poll manually
+        deadline = time.time() + timeout
+        while message.status not in (
+            MessageStatus.COMPLETED,
+            MessageStatus.FAILED,
+            MessageStatus.CANCELLED,
+        ):
+            if time.time() > deadline:
+                raise TimeoutError(
+                    f"Genie did not respond within {timeout}s for: {question!r}"
+                )
+            time.sleep(2)
+            message = self.wc.genie.get_message(
+                space_id=space_id,
+                conversation_id=message.conversation_id,
+                message_id=message.message_id,
+            )
+
+        if message.status == MessageStatus.FAILED:
+            error_msg = ""
+            if message.error:
+                error_msg = str(message.error)
+            raise RuntimeError(f"Genie query failed for {question!r}: {error_msg}")
+
+        return message
 
     def create(
         self,
