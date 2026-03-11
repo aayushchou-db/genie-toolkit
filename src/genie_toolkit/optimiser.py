@@ -3,7 +3,13 @@ import random
 
 import gepa.optimize_anything as oa
 import yaml
-from gepa.optimize_anything import EngineConfig, GEPAConfig, optimize_anything
+from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
+from gepa.optimize_anything import (
+    EngineConfig,
+    GEPAConfig,
+    ReflectionConfig,
+    optimize_anything,
+)
 
 from genie_toolkit.genie_service import GenieService
 from genie_toolkit.schemas import (
@@ -78,21 +84,26 @@ def llm_judge(
 
     Returns (score, diagnostic_text) where score is 0 or 1.
     """
-    prompt = (
+    system_prompt = (
         "You are an evaluation judge. Determine whether the actual answer is "
         "semantically equivalent to the expected answer for the given question.\n\n"
-        f"Question: {question}\n"
-        f"Expected answer: {expected_answer}\n"
-        f"Actual answer: {actual_answer}\n\n"
         "Respond with ONLY a JSON object: "
         '{"score": 1, "reason": "..."} if equivalent, '
         '{"score": 0, "reason": "..."} if not.'
+    )
+    user_prompt = (
+        f"Question: {question}\n"
+        f"Expected answer: {expected_answer}\n"
+        f"Actual answer: {actual_answer}\n\n"
     )
 
     try:
         response = wc.serving_endpoints.query(
             name=model_endpoint,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                ChatMessage(role=ChatMessageRole.SYSTEM, content=system_prompt),
+                ChatMessage(role=ChatMessageRole.USER, content=user_prompt),
+            ],
         )
         content = response.choices[0].message.content
         import json
@@ -266,9 +277,12 @@ def run_optimisation(
         objective=(
             "Optimise the Genie Space configuration so that the Genie produces "
             "correct answers to the benchmark questions. Improve text instructions, "
-            "example SQL, sample questions, join specs, and SQL snippets."
+            "example SQL, sample questions, join specs, and SQL snippets. Keep instructions short. Assume DBSQL."
         ),
-        config=GEPAConfig(engine=EngineConfig(max_metric_calls=max_evals)),
+        config=GEPAConfig(
+            engine=EngineConfig(max_metric_calls=max_evals),
+            reflection=ReflectionConfig(reflection_lm="databricks/databricks-gpt-5-1"),
+        ),
     )
 
     best_candidate = result.best_candidate

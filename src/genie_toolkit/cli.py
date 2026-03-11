@@ -290,7 +290,7 @@ def optimise(
         typer.Option(
             help="Databricks Foundation Model serving endpoint for LLM judging.",
         ),
-    ] = "databricks-meta-llama-3-3-70b-instruct",
+    ] = "databricks-claude-sonnet-4-6",
     max_evals: Annotated[
         int,
         typer.Option(
