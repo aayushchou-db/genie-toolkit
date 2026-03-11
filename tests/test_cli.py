@@ -243,3 +243,86 @@ class TestPullCommand:
         assert result.exit_code == 0
         assert "Successfully pulled" in result.stdout
         mock_get_svc.assert_called_once_with(None)
+
+
+class TestOptimiseCommand:
+    def test_optimise_no_benchmarks_errors(self, tmp_path):
+        config_file = tmp_path / "genie.yml"
+        config_file.write_text(
+            "genie:\n  data_sources:\n    tables: []\n  instructions: {}\n"
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "optimise",
+                "--space-id", "sp123",
+                "--config", str(config_file),
+            ],
+        )
+        assert result.exit_code != 0
+        assert "No benchmarks found" in result.stdout
+
+    @patch("genie_toolkit.cli.run_optimisation")
+    @patch("genie_toolkit.cli.get_genie_service")
+    def test_optimise_happy_path(self, mock_get_svc, mock_run_opt, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        config_file = tmp_path / "genie.yml"
+        config_file.write_text(
+            "genie:\n"
+            "  data_sources:\n"
+            "    tables: []\n"
+            "  instructions:\n"
+            "    text_instructions:\n"
+            "      - id: ti1\n"
+            "        content:\n"
+            "          - Be helpful\n"
+            "  benchmarks:\n"
+            "    questions:\n"
+            "      - id: q1\n"
+            "        question:\n"
+            "          - How many users?\n"
+            "        answer:\n"
+            "          - format: text\n"
+            "            content:\n"
+            "              - '42'\n"
+            "      - id: q2\n"
+            "        question:\n"
+            "          - What is revenue?\n"
+            "        answer:\n"
+            "          - format: text\n"
+            "            content:\n"
+            "              - '1000'\n"
+            "      - id: q3\n"
+            "        question:\n"
+            "          - Top product?\n"
+            "        answer:\n"
+            "          - format: text\n"
+            "            content:\n"
+            "              - Widget\n"
+        )
+
+        mock_best_settings = MagicMock()
+        mock_run_opt.return_value = {
+            "train_score": 0.85,
+            "val_score": 0.80,
+            "test_count": 1,
+            "best_candidate": "text_instructions:\n- content: [Optimised]\n",
+            "best_settings": mock_best_settings,
+        }
+
+        result = runner.invoke(
+            app,
+            [
+                "optimise",
+                "--space-id", "sp123",
+                "--profile", "dev",
+                "--config", str(config_file),
+                "--max-evals", "10",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Train score" in result.stdout
+        assert "Validation score" in result.stdout
+        mock_run_opt.assert_called_once()
+        mock_best_settings.to_yaml.assert_called_once()
