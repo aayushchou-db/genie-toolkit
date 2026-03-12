@@ -118,6 +118,93 @@ def llm_judge(
         return (0, diagnostic)
 
 
+def _build_background(settings: GenieSchemaSettings) -> str:
+    """Build domain context for the GEPA reflection LLM.
+
+    Includes table metadata, structured artifact format examples, and priority guidance.
+    """
+    sections: list[str] = []
+
+    # Table metadata
+    if settings.data_sources and settings.data_sources.tables:
+        table_lines = ["## Available Tables"]
+        for table in settings.data_sources.tables:
+            table_lines.append(f"\n### {table.identifier}")
+            if table.column_configs:
+                cols = ", ".join(c.column_name for c in table.column_configs)
+                table_lines.append(f"Columns: {cols}")
+        sections.append("\n".join(table_lines))
+
+    # Format documentation with examples
+    sections.append(
+        """## YAML Format Documentation
+
+### example_question_sqls
+Pairs of natural-language questions with their correct SQL. Genie uses these as few-shot examples.
+```yaml
+example_question_sqls:
+  - id: eq1
+    question:
+      - What is the total revenue by region?
+    sql:
+      - SELECT region, SUM(revenue) FROM sales GROUP BY region
+```
+
+### join_specs
+Specify how tables should be joined. Each entry names a left table, right table, and the SQL join condition.
+```yaml
+join_specs:
+  - id: js1
+    left:
+      identifier: catalog.schema.orders
+      alias: o
+    right:
+      identifier: catalog.schema.customers
+      alias: c
+    sql:
+      - o.customer_id = c.id
+```
+
+### sql_snippets
+Reusable SQL fragments for filters, expressions, and measures. Include an alias and optional synonyms so Genie can match user intent.
+```yaml
+sql_snippets:
+  filters:
+    - id: f1
+      alias: active_customers
+      display_name: Active Customers
+      synonyms:
+        - current customers
+      sql:
+        - status = 'active'
+  expressions:
+    - id: e1
+      alias: full_name
+      display_name: Full Name
+      sql:
+        - CONCAT(first_name, ' ', last_name)
+  measures:
+    - id: m1
+      alias: total_revenue
+      display_name: Total Revenue
+      synonyms:
+        - revenue
+        - sales
+      sql:
+        - SUM(revenue)
+```
+
+## Priority Guidance
+- PREFER creating structured artifacts (example_question_sqls, join_specs, sql_snippets) over adding verbose text_instructions.
+- text_instructions should be kept short and only cover guidance that CANNOT be expressed as structured artifacts.
+- When tables need to be joined, always create a join_spec.
+- When users commonly ask about a metric or filter, create a sql_snippet.
+- When you know the correct SQL for a question, add it as an example_question_sql."""
+    )
+
+    return "\n\n".join(sections)
+
+
 def serialise_config_components(
     instructions: GenieInstructions | None,
     config: dict | None = None,
@@ -144,6 +231,13 @@ def serialise_config_components(
             components["sql_snippets"] = instructions.sql_snippets.model_dump(
                 exclude_none=True
             )
+
+    # Always include empty scaffolding so the LLM sees these keys are available
+    components.setdefault("example_question_sqls", [])
+    components.setdefault("join_specs", [])
+    components.setdefault(
+        "sql_snippets", {"filters": [], "expressions": [], "measures": []}
+    )
 
     if config:
         components["sample_questions"] = config
@@ -271,14 +365,21 @@ def run_optimisation(
         genie_service, space_id, train, wc, model_endpoint, settings
     )
 
+    background = _build_background(settings)
+
     result = optimize_anything(
         seed_candidate=seed,
         evaluator=evaluator,
         objective=(
-            "Optimise the Genie Space configuration so that the Genie produces "
-            "correct answers to the benchmark questions. Improve text instructions, "
-            "example SQL, sample questions, join specs, and SQL snippets. Keep instructions short. Assume DBSQL."
+            "Optimise the Genie Space configuration so that Genie produces correct "
+            "SQL answers to the benchmark questions. Focus on creating structured "
+            "artifacts: create join_specs for table relationships, sql_snippets for "
+            "reusable filters/expressions/measures, and example_question_sqls for "
+            "common queries with their correct SQL. Keep text_instructions minimal — "
+            "only for guidance that cannot be expressed as structured artifacts. "
+            "Assume Databricks SQL dialect."
         ),
+        background=background,
         config=GEPAConfig(
             engine=EngineConfig(max_metric_calls=max_evals),
             reflection=ReflectionConfig(reflection_lm="databricks/databricks-gpt-5-1"),
