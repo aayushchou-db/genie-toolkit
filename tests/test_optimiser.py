@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from genie_toolkit.optimiser import (
+    _build_background,
     build_evaluator,
     deserialise_config_components,
     llm_judge,
@@ -13,9 +14,12 @@ from genie_toolkit.optimiser import (
 from genie_toolkit.schemas import (
     GenieBenchmarkAnswer,
     GenieBenchmarkQuestion,
+    GenieColumnConfig,
+    GenieDataSources,
     GenieExampleSQL,
     GenieInstructions,
     GenieSchemaSettings,
+    GenieTableConfig,
     GenieTextInstruction,
 )
 
@@ -116,12 +120,36 @@ class TestSerialiseDeserialise:
         assert result_config is not None
         assert result_config["sample_questions"][0]["question"] == ["What is revenue?"]
 
-    def test_empty_instructions(self):
+    def test_empty_instructions_includes_scaffolding(self):
         instructions = GenieInstructions()
         serialised = serialise_config_components(instructions)
         result_instructions, result_config = deserialise_config_components(serialised)
         assert result_instructions.text_instructions is None
         assert result_config is None
+
+        # Scaffolding keys must be present in the serialised YAML
+        assert "example_question_sqls:" in serialised
+        assert "join_specs:" in serialised
+        assert "sql_snippets:" in serialised
+        assert "filters:" in serialised
+        assert "expressions:" in serialised
+        assert "measures:" in serialised
+
+    def test_scaffolding_does_not_overwrite_existing(self):
+        instructions = GenieInstructions(
+            example_question_sqls=[
+                GenieExampleSQL(
+                    id="eq1",
+                    question=["How many users?"],
+                    sql=["SELECT COUNT(*) FROM users"],
+                )
+            ]
+        )
+        serialised = serialise_config_components(instructions)
+        result_instructions, _ = deserialise_config_components(serialised)
+
+        assert len(result_instructions.example_question_sqls) == 1
+        assert result_instructions.example_question_sqls[0].id == "eq1"
 
     def test_deserialise_invalid_yaml(self):
         # Invalid YAML should not crash, returns empty instructions
@@ -226,3 +254,84 @@ class TestBuildEvaluator:
         # Invalid YAML that can't be parsed
         score = evaluator("{{{{invalid yaml: [")
         assert score == 0.0
+
+
+class TestBuildBackground:
+    def test_includes_table_identifiers(self):
+        settings = GenieSchemaSettings(
+            version=1,
+            data_sources=GenieDataSources(
+                tables=[
+                    GenieTableConfig(identifier="catalog.schema.orders"),
+                    GenieTableConfig(identifier="catalog.schema.customers"),
+                ]
+            ),
+        )
+        bg = _build_background(settings)
+        assert "catalog.schema.orders" in bg
+        assert "catalog.schema.customers" in bg
+
+    def test_includes_column_names(self):
+        settings = GenieSchemaSettings(
+            version=1,
+            data_sources=GenieDataSources(
+                tables=[
+                    GenieTableConfig(
+                        identifier="catalog.schema.orders",
+                        column_configs=[
+                            GenieColumnConfig(column_name="order_id"),
+                            GenieColumnConfig(column_name="total"),
+                        ],
+                    ),
+                ]
+            ),
+        )
+        bg = _build_background(settings)
+        assert "order_id" in bg
+        assert "total" in bg
+
+    def test_includes_format_examples(self):
+        settings = GenieSchemaSettings(version=1)
+        bg = _build_background(settings)
+        assert "example_question_sqls" in bg
+        assert "join_specs" in bg
+        assert "sql_snippets" in bg
+        assert "Priority Guidance" in bg
+
+    def test_no_tables_section_without_data_sources(self):
+        settings = GenieSchemaSettings(version=1)
+        bg = _build_background(settings)
+        assert "Available Tables" not in bg
+
+
+class TestRunOptimisation:
+    @patch("genie_toolkit.optimiser.optimize_anything")
+    @patch("genie_toolkit.optimiser._evaluate_questions")
+    def test_passes_background_to_optimizer(self, mock_eval, mock_optimize):
+        mock_result = MagicMock()
+        mock_result.best_candidate = "example_question_sqls: []\njoin_specs: []\nsql_snippets:\n  filters: []\n  expressions: []\n  measures: []\n"
+        mock_result.best_score = 0.8
+        mock_optimize.return_value = mock_result
+        mock_eval.return_value = 0.75
+
+        mock_service = MagicMock()
+        settings = GenieSchemaSettings(
+            version=1,
+            data_sources=GenieDataSources(
+                tables=[GenieTableConfig(identifier="catalog.schema.orders")]
+            ),
+            instructions=GenieInstructions(),
+        )
+        questions = _make_questions(4)
+
+        from genie_toolkit.optimiser import run_optimisation
+
+        run_optimisation(
+            mock_service, "sp123", settings, questions, "test-ep", max_evals=5
+        )
+
+        # Verify optimize_anything was called with background kwarg
+        _, kwargs = mock_optimize.call_args
+        assert "background" in kwargs
+        assert "catalog.schema.orders" in kwargs["background"]
+        assert "structured artifacts" in kwargs["objective"].lower()
